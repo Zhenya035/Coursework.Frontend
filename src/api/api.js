@@ -19,6 +19,13 @@ export default {
             }
         });
     },
+    getUserById(userId) {
+        return apiClient.get(`users/${userId}`, {
+            headers: {
+                Authorization: `Bearer ${sessionStorage.getItem('token')}`
+            }
+        });
+    },
     deleteUsers(userIds) {
         return apiClient.delete(`users/delete`, {
             headers: {
@@ -50,6 +57,21 @@ export default {
     },
     makeUser(userIds) {
         return apiClient.put(`users/makeUser`,  userIds, {
+            headers: {
+                Authorization: `Bearer ${sessionStorage.getItem('token')}`
+            }
+        });
+    },
+
+    getTemplates(userInfo){
+        return apiClient.post(`templates`,  userInfo, {
+            headers: {
+                Authorization: `Bearer ${sessionStorage.getItem('token')}`
+            }
+        });
+    },
+    deleteTemplates(templateId) {
+        return apiClient.delete(`templates/${templateId}/delte`, {
             headers: {
                 Authorization: `Bearer ${sessionStorage.getItem('token')}`
             }
