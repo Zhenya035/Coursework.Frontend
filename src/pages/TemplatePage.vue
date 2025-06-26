@@ -54,7 +54,7 @@ export default {
   computed:{
     filteredTemplates() {
       const filter = this.filterText.toLowerCase();
-      return this.templates.filter(template => template.tags.map(tag => tag.toLowerCase()).includes(filter) ||
+      return this.templates.filter(template => template.tags.some(tag => tag.toLowerCase().includes(filter)) ||
           template.title.toLowerCase().includes(filter));
     }
   },
