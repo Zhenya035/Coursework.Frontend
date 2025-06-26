@@ -1,7 +1,7 @@
 ﻿import axios from 'axios';
 
 export const apiClient = axios.create({
-    baseURL: 'http://localhost:5179',//https://coursework.somee.com
+    baseURL: 'https://coursework.somee.com',//http://localhost:5179
     timeout: 5000,
 });
 
