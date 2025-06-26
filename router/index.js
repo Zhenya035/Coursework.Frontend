@@ -3,12 +3,13 @@
 import LoginPage from "@/Pages/LoginPage.vue";
 import RegistrationPage from "@/Pages/RegistrationPage.vue";
 import UsersPage from "@/Pages/UsersPage.vue";
-
+import TemplatePage from "@/Pages/TemplatePage.vue";
 
 const routes = [
     { path: '/login', component: LoginPage},
     { path: '/registration', component: RegistrationPage },
     { path: '/users', component: UsersPage },
+    { path: '/templates', component: TemplatePage },
     {
         path: '/:pathMatch(.*)*',
         redirect: '/login'
