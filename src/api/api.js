@@ -1,7 +1,8 @@
 ﻿import axios from 'axios';
 
 export const apiClient = axios.create({
-    baseURL: 'https://coursework.somee.com',//http://localhost:5179
+    //baseURL: 'http://localhost:5179',
+    baseUrl: 'https://coursework.somee.com',
     timeout: 5000,
 });
 
@@ -106,7 +107,7 @@ export default {
         });
     },
     deleteAuthorizedUsers(templateId, authorizedUsers) {
-        return apiClient.put(`templates/${templateId}/addAuthorizedUsers`, authorizedUsers, {
+        return apiClient.put(`templates/${templateId}/deleteAuthorizedUsers`, authorizedUsers, {
             headers: {
                 Authorization: `Bearer ${sessionStorage.getItem('token')}`
             }
