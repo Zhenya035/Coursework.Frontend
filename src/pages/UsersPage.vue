@@ -29,9 +29,6 @@
 
         <input type="text" placeholder="Filter" v-model="filterText" />
       </div>
-      <div class="right-side">
-        <button @click="logout" class="btn btn-logout">Logout</button>
-      </div>
     </div>
 
     <table class="user-table">
@@ -105,13 +102,6 @@ export default {
 
         await router.push('/login');
       }
-    },
-    logout() {
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('userId');
-      sessionStorage.removeItem('role');
-
-      router.push('/login');
     },
     getSelectedUserIds() {
       return this.users

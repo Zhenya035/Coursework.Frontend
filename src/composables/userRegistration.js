@@ -28,7 +28,10 @@ export default function userRegistration() {
             sessionStorage.setItem('token', token);
             sessionStorage.setItem('role', role);
 
-            await router.push('/templates');
+            if(role === 'Admin')
+                await router.push('/users');
+            else
+                await router.push('/templates');
         } catch (err) {
             console.error('Registration error', err);
             error.value = err.response?.data?.message || 'Email already used';
