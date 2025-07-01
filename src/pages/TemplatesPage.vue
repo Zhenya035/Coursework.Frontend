@@ -59,8 +59,8 @@ import timezone from 'dayjs/plugin/timezone';
 
 import api from '../api/api.js';
 import ContextMenu from '@/components/ContextMenu.vue';
-import AddUsersModal from '@/components/AddUserModal.vue';
-import RemoveUserModal from '@/components/RemoveUserModal.vue';
+import AddUsersModal from '@/components/modalPages/AddUserModal.vue';
+import RemoveUserModal from '@/components/modalPages/RemoveUserModal.vue';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);

@@ -7,7 +7,7 @@
         <div class="toolbar">
           <div class="left-side">
             <button @click="deleteSelected" class="btn btn-delete" title="Delete">
-              <img src="../assets/delete.png" class="bi bi-trash-fill" />
+              <img src="../../assets/delete.png" class="bi bi-trash-fill" />
               Удалить
             </button>
           </div>

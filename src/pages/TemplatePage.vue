@@ -51,7 +51,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/api/api';
-import CommentsModal from '@/components/CommentsModal.vue';
+import CommentsModal from '@/components/modalPages/CommentsModal.vue';
 
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
