@@ -1,278 +1,244 @@
 ﻿<template>
-  <div class="template-list">
-    <div class="toolbar">
-      <input type="text" placeholder="Filter" v-model="filterText" />
+  <div class="template-details">
+    <div v-if="loading" class="loader">Загрузка...</div>
+
+    <div v-else-if="error" class="error">{{ error }}</div>
+
+    <div v-else class="content">
+      <h1>{{ template.title }}</h1>
+      <p class="description">{{ template.description }}</p>
+
+      <div class="tags">
+        <strong>Теги:</strong>
+        <span v-for="(tag, index) in template.tags" :key="index" class="tag">{{ tag }}</span>
+      </div>
+
+      <div class="author">
+        <strong>Автор:</strong> {{ template.author }} (ID: {{ template.authorId }})
+      </div>
+
+      <div class="dates">
+        <p><strong>Создан:</strong> {{ formatDate(template.createdAt) }}</p>
+        <p><strong>Обновлён:</strong> {{ formatDate(template.updatedAt) }}</p>
+      </div>
+
+      <div class="stats">
+        <p><strong>Лайки:</strong> {{ template.likesCount }}</p>
+        <p @click="showCommentsModal" class="p-click"><strong>Комментарии:</strong> {{ template.comments.length }}</p>
+        <p><strong>Формы:</strong> {{ template.formsCount }}</p>
+        <p><strong>Вопросов:</strong> {{ template.questionsCount }}</p>
+      </div>
+
+      <div class="authorized-users" v-if="template.authorisedEmails.length > 0">
+        <strong>Доступ разрешён:</strong>
+        <ul>
+          <li v-for="(email, idx) in template.authorisedEmails" :key="idx">{{ email }}</li>
+        </ul>
+      </div>
+
+      <button @click="$router.back()" class="back-button">Назад</button>
     </div>
-
-    <table class="template-table">
-      <thead>
-      <tr>
-        <th>Title</th>
-        <th>Description</th>
-        <th>Tags</th>
-        <th>Likes</th>
-        <th>Comment</th>
-        <th>Author</th>
-        <th>Created at</th>
-        <th>Update at</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr v-for="(template, index) in filteredTemplates" :key="index"
-          @contextmenu.prevent="showContextMenu($event, template)">
-        <td>{{ template.title }}</td>
-        <td class="description-table">{{ template.description }}</td>
-        <td class="tags-table">{{ formatTags(template.tags) }}</td>
-        <td>{{ template.likesCount }}</td>
-        <td>{{ template.comments.length }}</td>
-        <td>{{ template.author }}</td>
-        <td>{{ formatDate(template.createdAt) }}</td>
-        <td>{{ formatDate(template.updatedAt) }}</td>
-      </tr>
-      </tbody>
-    </table>
-
-    <context-menu
-        v-if="contextMenu.visible"
-        :position="contextMenu"
-        @action="handleMenuAction"
-    />
-
-    <add-users-modal
-        v-model:visible="modals.add"
-        :authorized-users = "authorizedUsers"
-        @save="handleAddUsers"
-    />
-
-    <remove-user-modal
-        v-model:visible="modals.remove"
-        :authorized-users = "authorizedUsers"
-        @remove="handleRemoveUsers"
-    />
   </div>
+
+  <CommentsModal
+      v-show="showCommentsModalVisible"
+      v-model="showCommentsModalVisible"
+      :comments="commentsWithSelected"
+  />
 </template>
 
-<script>
-import api from '../api/api.js';
-import router from "../../router/index.js";
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import api from '@/api/api';
+import CommentsModal from '@/components/CommentsModal.vue';
+
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-import ContextMenu from '@/components/ContextMenu.vue';
-import AddUsersModal from '@/components/AddUserModal.vue';
-import RemoveUserModal from '@/components/RemoveUserModal.vue';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-export default {
-  components: {
-    ContextMenu,
-    AddUsersModal,
-    RemoveUserModal,
-  },
-  data() {
-    return {
-      templates: [],
-      filterText: '',
-      role: sessionStorage.getItem('role'),
-      userId: sessionStorage.getItem('userId'),
-      authorizedUsers: [],
-      contextMenu: {
-        visible: false,
-        x: 0,
-        y: 0
-      },
-      selectedTemplate: null,
-      modals: {
-        add: false,
-        remove: false
-      }
-    };
-  },
-  computed:{
-    filteredTemplates() {
-      const filter = this.filterText.toLowerCase();
-      return this.templates.filter(template => template.tags.some(tag => tag.toLowerCase().includes(filter)) ||
-          template.title.toLowerCase().includes(filter));
-    }
-  },
-  methods: {
-    showContextMenu(event, template) {
-      this.selectedTemplate = template;
-      if(this.role ==='Admin' || this.userId === this.selectedTemplate.authorId.toString()) {
-        const {clientX: x, clientY: y} = event;
-        this.contextMenu = {visible: true, x, y};
-      }
-    },
-    handleMenuAction(action) {
-      switch (action) {
-        case 'delete':
-          this.deleteTemplate();
-          break;
-        case 'add':
-          this.openAddModal();
-          break;
-        case 'remove':
-          this.openRemoveModal();
-          break;
-        default:
-          console.warn(`Unknown action: ${action}`);
-      }
-    },
-    async deleteTemplate() {
-      if (!this.selectedTemplate) return;
 
-      const index = this.selectedTemplate.id;
-      if (index !== -1) {
-        await api.deleteTemplates(index);
-        await this.fetchTemplates()
-        this.contextMenu.visible = false;
-        alert(`Шаблон "${this.selectedTemplate.title}" удален`);
-      }
-    },
-    openAddModal() {
-      this.contextMenu.visible = false;
-      this.authorizedUsers = this.selectedTemplate.authorisedEmails;
-      this.modals.add = true;
-    },
-    async handleAddUsers(emails) {
-      console.log('Выбранные email:', emails);
-      console.log('Template id:', this.selectedTemplate.id);
-      const emailsDto = {
-        emails: emails
-      }
-      await api.addAuthorizedUsers(this.selectedTemplate.id, emailsDto);
-      await this.fetchTemplates()
-    },
-    openRemoveModal() {
-      this.contextMenu.visible = false;
-      this.authorizedUsers = this.selectedTemplate.authorisedEmails;
-      this.modals.remove = true;
-    },
-    async handleRemoveUsers(emails) {
-      console.log('Выбранные email:', emails);
-      console.log('Template id:', this.selectedTemplate.id);
-      const emailsDto = {
-        emails: emails
-      }
-      await api.deleteAuthorizedUsers(this.selectedTemplate.id, emailsDto);
-      await this.fetchTemplates()
-    },
-    async fetchTemplates() {
-      try {
-        const userId = sessionStorage.getItem('userId');
+const route = useRoute();
 
-        const userResponse = await api.getUserById(userId);
-        const user = userResponse.data;
+const loading = ref(true);
+const error = ref(null);
+const template = ref(null);
+const showCommentsModalVisible = ref(false);
 
-        const userInfo = {
-          email: user.email,
-          role: user.role
-        }
+const commentsWithSelected = computed(() => {
+  if (!Array.isArray(template.value?.comments)) return [];
 
-        const templateResponse = await api.getTemplates(userInfo)
+  return template.value.comments.map(comment => ({
+    ...comment,
+    selected: false
+  }));
+});
 
-        this.templates = templateResponse.data.map(template => ({
-          ...template,
-          selected: false,
-        }));
-      } catch (error) {
-        console.error('Error for get templates', error);
-
-        sessionStorage.removeItem('userId');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('role');
-
-        if(error.response.status === 401) {
-          await router.push({path: '/login',
-            query: {error: 'unauthorized'}});
-        }
-        else if(error.response.status === 403) {
-          await router.push({path: '/login',
-            query: {error: 'blocked'}});
-        }
-
-        await router.push('/login');
-      }
-    },
-    formatTags(tags) {
-      return tags ? tags.join(', ') : '';
-    },
-    formatDate(date) {
-      const newDate = date + "Z";
-      return dayjs(newDate).local().format('DD:MM:YYYY HH:mm');
-    },
-  },
-  mounted() {
-    this.fetchTemplates();
+const fetchTemplate = async (id) => {
+  loading.value = true;
+  try {
+    const response = await api.getTemplateById(id);
+    template.value = response.data;
+  } catch (err) {
+    console.error('Ошибка загрузки шаблона:', err);
+    error.value = 'Не удалось загрузить шаблон';
+  } finally {
+    loading.value = false;
   }
-}
+};
+
+const formatDate = (date) => {
+  const newDate = date + 'Z';
+  return dayjs(newDate).local().format('DD.MM.YYYY HH:mm');
+};
+
+const showCommentsModal = () => {
+  showCommentsModalVisible.value = true;
+};
+
+onMounted(() => {
+  const id = route.params.id;
+  if (id) {
+    fetchTemplate(id);
+  } else {
+    error.value = 'Шаблон не найден';
+    loading.value = false;
+  }
+});
 </script>
 
 <style scoped>
-.template-list {
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
+.template-details {
+  padding: 40px 20px;
+  max-width: 1000px;
+  margin: auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
 }
 
-.toolbar {
+.loader {
+  text-align: center;
+  font-size: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.error {
+  text-align: center;
+  color: #e74c3c;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 40px;
+}
+
+.content {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 30px;
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+h1 {
+  font-size: 28px;
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.description {
+  white-space: pre-wrap;
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  color: #555;
+}
+
+.tags {
+  margin-bottom: 20px;
+}
+.tag {
+  display: inline-block;
+  background: #ecf0f1;
+  color: #2c3e50;
+  padding: 6px 12px;
+  margin-right: 8px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.author, .dates {
+  margin-bottom: 16px;
+  font-size: 15px;
+}
+
+.stats {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
   margin-bottom: 20px;
 }
 
-input[type="text"] {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  width: 200px;
-}
-
-.template-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.template-table th,
-.template-table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-
-.template-table th {
-  font-weight: bold;
-}
-
-.template-table td input[type="checkbox"] {
-  margin-right: 10px;
-}
-
-.description-table, .tags-table{
-  width: 300px;
-  max-width: 300px;
-  word-wrap: break-word;
-}
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1001;
-}
-
-.modal-content {
-  background: white;
-  padding: 20px;
+.stats p {
+  background: #f8f9fa;
+  padding: 10px 16px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+  transition: background-color 0.3s ease;
+}
+
+.p-click{
+  cursor: pointer;
+}
+
+.p-click:hover {
+  background-color: #e9ecef;
+}
+
+.authorized-users ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+.authorized-users li {
+  display: inline-block;
+  background: #dfeff9;
+  padding: 6px 12px;
+  margin: 4px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.comments h3 {
+  font-size: 20px;
+  margin-top: 30px;
+  color: #333;
+}
+
+.comment-item p {
+  margin: 4px 0;
+}
+
+.back-button {
+  margin-top: 30px;
+  padding: 12px 24px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background-color 0.3s ease;
+}
+.back-button:hover {
+  background-color: #2980b9;
 }
 </style>

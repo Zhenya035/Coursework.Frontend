@@ -2,13 +2,20 @@
   <div class="modal" v-if="visible">
     <div class="modal-content">
       <h3>Убрать пользователей</h3>
+
+      <div v-if="loading">Загрузка пользователей...</div>
+
       <multiselect
           v-model="selectedEmails"
           :options="userEmails"
           :multiple="true"
           placeholder="Выберите пользователей"
           class="multiselect"
+          :searchable="true"
+          :close-on-select="false"
       />
+
+      <p v-if="selectedEmails.length === 0 && !loading" class="hint">Ничего не выбрано</p>
 
       <button @click="remove">Сохранить</button>
       <button @click="close">Закрыть</button>
@@ -16,49 +23,45 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, watch } from "vue";
 import Multiselect from "vue-multiselect";
 
-export default {
-  components: {
-    Multiselect
-  },
-  props: {
-    visible: {
-      type: Boolean,
-      required: true
-    },
-    authorizedUsers:{
-      type: Array,
-      default: () => []
-    }
-  },
-  data() {
-    return {
-      userEmails: [],
-      selectedEmails: []
-    };
-  },
-  methods: {
-    remove() {
-      this.$emit('remove', this.selectedEmails);
+const props = defineProps( {
+    visible: { type: Boolean, required: true },
+    authorizedUsers:{ type: Array, default: () => [] }
+})
 
-      this.$emit('update:visible', false);
-      this.selectedEmails = [];
-    },
-    close() {
-      this.$emit('update:visible', false);
-    }
-  },
-  watch: {
-    visible(newVal) {
-      if (newVal) {
-        this.userEmails = [...this.authorizedUsers];
-        this.selectedEmails = []
+const emit = defineEmits(['update:visible', 'remove']);
+
+const userEmails = ref([]);
+const selectedEmails = ref([]);
+const loading = ref(false);
+
+const availableEmails = computed(() => {
+  return userEmails.value.filter(email => props.authorizedUsers.includes(email));
+});
+
+function remove() {
+  emit('remove', selectedEmails.value);
+  emit('update:visible', false);
+  selectedEmails.value = [];
+}
+
+function close() {
+  emit('update:visible', false);
+  selectedEmails.value = [];
+}
+
+watch(
+    () => props.visible,
+    (newVal) => {
+      if(newVal) {
+        userEmails.value = [...props.authorizedUsers];
+        selectedEmails.value = []
       }
     }
-  }
-};
+);
 </script>
 
 <style src="vue-multiselect/dist/vue-multiselect.css"></style>

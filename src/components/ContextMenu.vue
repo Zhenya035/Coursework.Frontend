@@ -6,21 +6,20 @@
   </div>
 </template>
 
-<script>
-export default {
-  props: {
-    position: {
-      type: Object,
-      required: true,
-      default: () => ({ x: 0, y: 0 })
-    }
-  },
-  methods: {
-    handleAction(action) {
-      this.$emit('action', action);
-    }
+<script setup>
+defineProps({
+  position: {
+    type: Object,
+    required: true,
+    default: () => ({ x: 0, y: 0 })
   }
-};
+});
+const emit = defineEmits(['action']);
+
+function handleAction(action) {
+  emit('action', action);
+}
+
 </script>
 
 <style scoped>

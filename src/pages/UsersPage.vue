@@ -7,23 +7,23 @@
           Block
         </button>
 
-        <button @click="unblockUsers" class="btn btn-unblock" title="Unblock">
-          <img src="../assets/unblock.png" class="bi bi-unlock-fill">
+        <button @click="unblockUsers" class="btn btn-unblock">
+          <img src="../assets/unblock.png" class="bi bi-unlock-fill" title="Unblock">
           Unblock
         </button>
 
-        <button @click="makeAdmin" class="btn btn-makeAdmin" title="make admin">
-          <img src="../assets/makeAdmin.png" class="bi bi-admin-fill">
+        <button @click="makeAdmin" class="btn btn-makeAdmin">
+          <img src="../assets/makeAdmin.png" class="bi bi-admin-fill" title="make admin">
           Make admin
         </button>
 
-        <button @click="makeUser" class="btn btn-makeUser" title="Make user">
-          <img src="../assets/makeUser.png" class="bi bi-user-fill">
+        <button @click="makeUser" class="btn btn-makeUser">
+          <img src="../assets/makeUser.png" class="bi bi-user-fill" title="Make user">
           Make user
         </button>
 
-        <button @click="deleteUsers" class="btn btn-delete" title="Delete">
-          <img src="../assets/delete.png" class="bi bi-trash-fill">
+        <button @click="deleteUsers" class="btn btn-delete">
+          <img src="../assets/delete.png" class="bi bi-trash-fill" title="Delete">
           Delete
         </button>
 
@@ -54,177 +54,148 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, onMounted } from 'vue';
 import api from '../api/api.js';
-import router from "../../router/index.js";
+import router from '../../router/index.js';
 
-export default {
-  data() {
-    return {
-      users: [],
-      filterText: '',
-      selectAll: false,
-    };
-  },
-  computed: {
-    filteredUsers() {
-      const filter = this.filterText.toLowerCase();
-      return this.users.filter(user => user.email.toLowerCase().includes(filter));
-    }
-  },
-  methods: {
-    toggleAllSelection() {
-      this.users.forEach(user => user.selected = this.selectAll);
-    },
-    async fetchUsers() {
-      try {
-        const userId = sessionStorage.getItem('userId');
-        const response = await api.getUsers(userId)
-        this.users = response.data.map(user => ({
-          ...user,
-          selected: false,
-        }));
-      } catch (error) {
-        console.error('Error for get users', error);
+const users = ref([]);
+const filterText = ref('');
+const selectAll = ref(false);
 
-        sessionStorage.removeItem('userId');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('role');
+const filteredUsers = computed(() => {
+  const filter = filterText.value.toLowerCase();
+  return users.value.filter(user => user.email.toLowerCase().includes(filter));
+});
 
-        if(error.response.status === 401) {
-          await router.push({path: '/login',
-            query: {error: 'unauthorized'}});
-        }
-        else if(error.response.status === 403) {
-          await router.push({path: '/login',
-            query: {error: 'blocked'}});
-        }
+function toggleAllSelection() {
+  users.value.forEach(user => user.selected = selectAll.value);
+}
 
-        await router.push('/login');
-      }
-    },
-    getSelectedUserIds() {
-      return this.users
-          .filter(user => user.selected)
-          .map(user => user.id);
-    },
-    async blockUsers() {
-      const selectedIds = this.getSelectedUserIds();
-      if (selectedIds.length === 0) {
-        alert('No users selected.');
-        return;
-      }
-
-      try {
-        await api.blockUsers(selectedIds);
-        await this.fetchUsers();
-        this.selectAll = false;
-      } catch (error) {
-        console.error('Error blocking users:', error);
-        if(error.response.status === 403) {
-          await router.push({path: '/login',
-            query: {error: 'incorrect status'}});
-        }
-        else{
-          alert('Failed to block users');
-        }
-      }
-    },
-    async unblockUsers() {
-      const selectedIds = this.getSelectedUserIds();
-      if (selectedIds.length === 0) {
-        alert('No users selected.');
-        return;
-      }
-
-      try {
-        await api.unblockUsers(selectedIds);
-        await this.fetchUsers();
-        this.selectAll = false;
-      } catch (error) {
-        console.error('Error unblocking users:', error);
-        if(error.response.status === 403) {
-          await router.push({path: '/login',
-            query: {error: 'incorrect status'}});
-        }
-        else{
-          alert('Failed to unblock users');
-        }
-      }
-    },
-    async deleteUsers() {
-      const selectedIds = this.getSelectedUserIds();
-      if (selectedIds.length === 0) {
-        alert('No users selected.');
-        return;
-      }
-
-      try {
-        await api.deleteUsers(selectedIds);
-        await this.fetchUsers();
-        this.selectAll = false;
-      } catch (error) {
-        console.error('Error deleting users:', error);
-        if(error.response.status === 403) {
-          await router.push({path: '/login',
-            query: {error: 'incorrect status'}});
-        }
-        else{
-          alert('Failed to delete users');
-        }
-      }
-    },
-    async makeAdmin() {
-      const selectedIds = this.getSelectedUserIds();
-      if (selectedIds.length === 0) {
-        alert('No users selected.');
-        return;
-      }
-
-      try {
-        await api.makeAdmin(selectedIds);
-        await this.fetchUsers();
-        this.selectAll = false;
-      }
-      catch (error) {
-        console.error('Error making admin users:', error);
-        if(error.response.status === 403) {
-          await router.push({path: '/login',
-            query: {error: 'incorrect status'}});
-        }
-        else{
-          alert('Failed to make admin for users');
-        }
-      }
-    },
-    async makeUser() {
-      const selectedIds = this.getSelectedUserIds();
-      if (selectedIds.length === 0) {
-        alert('No users selected.');
-        return;
-      }
-
-      try {
-        await api.makeUser(selectedIds);
-        await this.fetchUsers();
-        this.selectAll = false;
-      }
-      catch (error) {
-        console.error('Error making user this users:', error);
-        if(error.response.status === 403) {
-          await router.push({path: '/login',
-            query: {error: 'incorrect status'}});
-        }
-        else{
-          alert('Failed to make user for users');
-        }
-      }
-    }
-  },
-  mounted() {
-    this.fetchUsers();
+async function fetchUsers() {
+  try {
+    const userId = sessionStorage.getItem('userId');
+    const response = await api.getUsers(userId);
+    users.value = response.data.map(user => ({
+      ...user,
+      selected: false,
+    }));
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    clearSessionAndRedirect(error);
   }
-};
+}
+
+function getSelectedUserIds() {
+  return users.value
+      .filter(user => user.selected)
+      .map(user => user.id);
+}
+
+async function blockUsers() {
+  const selectedIds = getSelectedUserIds();
+  if (!selectedIds.length) {
+    alert('No users selected.');
+    return;
+  }
+
+  try {
+    await api.blockUsers(selectedIds);
+    await fetchUsers();
+    selectAll.value = false;
+  } catch (error) {
+    handleError(error, 'Failed to block users');
+  }
+}
+
+async function unblockUsers() {
+  const selectedIds = getSelectedUserIds();
+  if (!selectedIds.length) {
+    alert('No users selected.');
+    return;
+  }
+
+  try {
+    await api.unblockUsers(selectedIds);
+    await fetchUsers();
+    selectAll.value = false;
+  } catch (error) {
+    handleError(error, 'Failed to unblock users');
+  }
+}
+
+async function deleteUsers() {
+  const selectedIds = getSelectedUserIds();
+  if (!selectedIds.length) {
+    alert('No users selected.');
+    return;
+  }
+
+  try {
+    await api.deleteUsers(selectedIds);
+    await fetchUsers();
+    selectAll.value = false;
+  } catch (error) {
+    handleError(error, 'Failed to delete users');
+  }
+}
+
+async function makeAdmin() {
+  const selectedIds = getSelectedUserIds();
+  if (!selectedIds.length) {
+    alert('No users selected.');
+    return;
+  }
+
+  try {
+    await api.makeAdmin(selectedIds);
+    await fetchUsers();
+    selectAll.value = false;
+  } catch (error) {
+    handleError(error, 'Failed to make users admin');
+  }
+}
+
+async function makeUser() {
+  const selectedIds = getSelectedUserIds();
+  if (!selectedIds.length) {
+    alert('No users selected.');
+    return;
+  }
+
+  try {
+    await api.makeUser(selectedIds);
+    await fetchUsers();
+    selectAll.value = false;
+  } catch (error) {
+    handleError(error, 'Failed to make users regular');
+  }
+}
+
+function handleError(error, defaultMessage) {
+  console.error(defaultMessage + ':', error);
+  if (error.response?.status === 403) {
+    router.push({ path: '/login', query: { error: 'incorrect status' } });
+  } else {
+    alert(defaultMessage);
+  }
+}
+
+function clearSessionAndRedirect(error) {
+  sessionStorage.removeItem('userId');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('role');
+
+  if (error.response?.status === 401) {
+    router.push({ path: '/login', query: { error: 'unauthorized' } });
+  } else if (error.response?.status === 403) {
+    router.push({ path: '/login', query: { error: 'blocked' } });
+  } else {
+    router.push('/login');
+  }
+}
+
+onMounted(fetchUsers);
 </script>
 
 <style scoped>
@@ -249,7 +220,10 @@ export default {
   margin-right: 10px;
 }
 
-.btn-block, .btn-unblock,  .btn-makeAdmin, .btn-makeUser{
+.btn-block,
+.btn-unblock,
+.btn-makeAdmin,
+.btn-makeUser {
   background-color: #e3f2fd;
   color: #0d47a1;
 }
@@ -257,11 +231,6 @@ export default {
 .btn-delete {
   background-color: #ffcccc;
   color: #c62828;
-}
-
-.btn-logout{
-  background-color: #e3f2fd;
-  color: #0d47a1;
 }
 
 input[type="text"] {
@@ -291,7 +260,7 @@ input[type="text"] {
   margin-right: 10px;
 }
 
-.bi{
+.bi {
   height: 20px;
   width: 20px;
 }
