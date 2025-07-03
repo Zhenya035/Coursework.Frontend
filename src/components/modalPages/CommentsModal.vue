@@ -4,22 +4,27 @@
       <h3>Все комментарии</h3>
 
       <div class="modal-comment-list">
-        <div class="toolbar">
-          <div class="left-side">
-            <button @click="deleteSelected" class="btn btn-delete" title="Delete">
-              <img src="../../assets/delete.png" class="bi bi-trash-fill" />
-              Удалить
-            </button>
-          </div>
+        <div v-if="isAdminOrOwner" class="toolbar">
+          <input type="checkbox" v-model="selectAll" @change="toggleAllSelection" />
+
+          <button @click="deleteComments" class="btn btn-delete" title="Delete">
+            <img src="../../assets/delete.png" class="bi bi-trash-fill" />
+            Удалить
+          </button>
         </div>
 
         <div v-for="comment in sortedComments" :key="comment.id" class="modal-comment-item">
-          <input type="checkbox" v-model="comment.selected" />
-          <p class="comment-header">
-            <span class="comment-author"><strong>{{ comment.author }}</strong></span>
-            <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
-          </p>
-          <p>{{ comment.content }}</p>
+          <div v-if="isAdminOrOwner" class="left-comment">
+            <input type="checkbox" v-model="comment.selected" />
+          </div>
+
+          <div class="right-comment">
+            <p class="comment-header">
+              <span class="comment-author"><strong>{{ comment.author }}</strong></span>
+              <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+            </p>
+            <p>{{ comment.content }}</p>
+          </div>
         </div>
       </div>
 
@@ -29,13 +34,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import {handleError, onMounted, ref, watch} from 'vue';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import api from "@/api/api.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+const sortedComments = ref([]);
+const selectAll = ref(false);
 
 const props = defineProps({
   comments: {
@@ -46,28 +55,71 @@ const props = defineProps({
   modelValue: {
     type: Boolean,
     default: false
+  },
+  isAdminOrOwner: {
+    type: Boolean,
+    default: false
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'delete-selected']);
+const emit = defineEmits(['update:modelValue', 'comments-updated']);
 
 const formatDate = (date) => {
   const newDate = date + "Z";
   return dayjs(newDate).local().format('DD.MM.YYYY HH:mm');
 };
 
-const sortedComments = computed(() => {
-  if (!props.comments) return [];
-  return [...props.comments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-});
-
 const close = () => {
   emit('update:modelValue', false);
+  selectAll.value = false;
 };
 
-const deleteSelected = () => {
-  emit('delete-selected');
-};
+function sortComments() {
+  console.log(props.comments);
+  if (!props.comments) return [];
+  sortedComments.value = [...props.comments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  console.log(sortedComments.value);
+}
+
+function toggleAllSelection() {
+  sortedComments.value.forEach(comm => comm.selected = selectAll.value);
+}
+
+function getSelectedCommentsIds() {
+  return sortedComments.value
+      .filter(comm => comm.selected)
+      .map(comm => comm.id);
+}
+
+async function deleteComments() {
+  const selectedIds = getSelectedCommentsIds();
+  if (!selectedIds.length) {
+    alert('No comments selected.');
+    return;
+  }
+
+  try {
+    await api.deleteComment(selectedIds);
+    emit('update:modelValue', false);
+    emit('comments-updated');
+    selectAll.value = false;
+
+  } catch (error) {
+    handleError(error, 'Failed to delete users');
+  }
+}
+
+onMounted(sortComments);
+
+watch(
+    () => props.comments,
+    (newVal) => {
+      if (newVal?.length > 0) {
+        sortComments();
+      }
+    },
+    { immediate: true, deep: true }
+);
 </script>
 
 <style scoped>
@@ -128,6 +180,15 @@ const deleteSelected = () => {
 .modal-comment-item {
   border-bottom: 1px solid #eee;
   padding: 12px 0;
+  display: flex;
+}
+
+.left-comment {
+  margin-right: 10px;
+}
+
+.right-comment {
+  width: 100%;
 }
 
 .close-button {

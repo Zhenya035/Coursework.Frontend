@@ -23,8 +23,24 @@
       </div>
 
       <div class="stats">
-        <p><strong>Лайки:</strong> {{ template.likesCount }}</p>
-        <p @click="showCommentsModal" class="p-click"><strong>Комментарии:</strong> {{ template.comments.length }}</p>
+        <button
+            v-if="isLiked"
+           @click="deleteLike"
+           class="like-button liked">
+          <strong>Лайки:</strong> {{ template.likesCount }}
+        </button>
+        <button v-else
+           @click="addLike"
+           class="like-button">
+          <strong>Лайки:</strong> {{ template.likesCount }}
+        </button>
+
+        <p v-if="template.comments.length > 0" @click="showCommentsModal" class="p-click">
+          <strong>Комментарии:</strong> {{ template.comments.length }}
+        </p>
+        <p v-else>
+          <strong>Комментарии:</strong> {{ template.comments.length }}
+        </p>
         <p><strong>Формы:</strong> {{ template.formsCount }}</p>
         <p><strong>Вопросов:</strong> {{ template.questionsCount }}</p>
       </div>
@@ -44,6 +60,8 @@
       v-show="showCommentsModalVisible"
       v-model="showCommentsModalVisible"
       :comments="commentsWithSelected"
+      :is-admin-or-owner="isAdminOrOwner"
+      @comments-updated="handleCommentsUpdated"
   />
 </template>
 
@@ -66,6 +84,8 @@ const loading = ref(true);
 const error = ref(null);
 const template = ref(null);
 const showCommentsModalVisible = ref(false);
+const isLiked = ref(false);
+const userId = sessionStorage.getItem('userId');
 
 const commentsWithSelected = computed(() => {
   if (!Array.isArray(template.value?.comments)) return [];
@@ -76,11 +96,22 @@ const commentsWithSelected = computed(() => {
   }));
 });
 
+const isAdminOrOwner = computed(() => {
+  if (!template.value) return false;
+
+  const role = sessionStorage.getItem('role');
+  const userId = sessionStorage.getItem('userId');
+  return role === "Admin" || userId === template.value.authorId.toString()
+});
+
 const fetchTemplate = async (id) => {
   loading.value = true;
   try {
-    const response = await api.getTemplateById(id);
-    template.value = response.data;
+    const templateResponse = await api.getTemplateById(id);
+    template.value = templateResponse.data;
+    const likeResponse = await api.checkLike(template.value.id, userId)
+    isLiked.value = likeResponse.data;
+    console.log(isLiked.value);
   } catch (err) {
     console.error('Ошибка загрузки шаблона:', err);
     error.value = 'Не удалось загрузить шаблон';
@@ -97,6 +128,20 @@ const formatDate = (date) => {
 const showCommentsModal = () => {
   showCommentsModalVisible.value = true;
 };
+
+const handleCommentsUpdated = () => {
+  template.value = fetchTemplate(route.params.id);
+};
+
+const addLike = async () => {
+  await api.addLike(template.value.id, userId);
+  await fetchTemplate(route.params.id);
+}
+
+const deleteLike = async () => {
+  await api.deleteLike(template.value.id, userId);
+  await fetchTemplate(route.params.id);
+}
 
 onMounted(() => {
   const id = route.params.id;
@@ -194,6 +239,34 @@ h1 {
   font-size: 14px;
   color: #555;
   transition: background-color 0.3s ease;
+}
+
+.like-button {
+  background: #f8f9fa;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.like-button:hover {
+  background-color: #e9ecef;
+}
+
+.liked {
+  background-color: #3498db;
+  color: white;
+}
+
+.liked:hover {
+  background-color: #2573a6;
+}
+
+.like-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .p-click{

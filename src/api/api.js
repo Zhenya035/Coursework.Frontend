@@ -1,7 +1,6 @@
 ﻿import axios from 'axios';
 
 export const apiClient = axios.create({
-    //baseURL: 'http://localhost:5179',
     baseURL: 'https://coursework.somee.com',
     timeout: 5000,
 });
@@ -157,12 +156,19 @@ export default {
             }
         });
     },
-    deleteLike(likeId) {
-        return apiClient.delete(`likes/${likeId}/delete`, {
+    deleteLike(templateId, authorId) {
+        return apiClient.delete(`likes/delete/template/${templateId}/author/${authorId}`, {
             headers: {
                 Authorization: `Bearer ${sessionStorage.getItem('token')}`
             }
         });
+    },
+    checkLike(templateId, authorId) {
+        return apiClient.get(`likes/check/author/${authorId}/template/${templateId}`, {
+            headers: {
+                Authorization: `Bearer ${sessionStorage.getItem('token')}`
+            }
+        })
     },
 
     getFormByTemplate(templateId) {
@@ -222,11 +228,12 @@ export default {
             }
         });
     },
-    deleteComment(commentId) {
-        return apiClient.delete(`comments/${commentId}/delete`, {
+    deleteComment(commentIds) {
+        return apiClient.delete(`comments/delete`, {
             headers: {
                 Authorization: `Bearer ${sessionStorage.getItem('token')}`
-            }
+            },
+            data: commentIds
         });
     },
 }
